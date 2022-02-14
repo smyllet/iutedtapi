@@ -1,0 +1,10 @@
+{
+  "iut": {
+    "username": "",
+    "password": ""
+  },
+  "http": {
+    "host": "localhost",
+    "port": 8081
+  }
+}
