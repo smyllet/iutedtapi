@@ -69,16 +69,31 @@ io.on('connection', (socket) => {
             // Récupération de la liste des semaines
             await page.click("#selectsem-button")
             let availableDate = cheerio.load(await page.content())("#selectsem-menu").html().split(">").filter(el => el.includes("</li")).map(el => el.replace('</li', ''))
+            let sortingDate = []
 
-            let days = []
-
-            // Pour chaque semaines disponible
+            let todayDate = new Date()
             for(const stringDate of availableDate) {
                 let splitDate = stringDate.split('/')
                 let dayDate = splitDate[0]
                 let monthDate = splitDate[1]
                 let yearDate = splitDate[2]
                 let mondayDate = new Date(yearDate, monthDate-1, dayDate, 0, 0)
+
+                sortingDate.push({
+                    stringDate: stringDate,
+                    mondayDate: mondayDate,
+                    diff: Math.abs(mondayDate.getTime() - todayDate.getTime())
+                })
+            }
+
+            sortingDate = sortingDate.sort((a, b) => a.diff - b.diff)
+
+            let days = []
+
+            // Pour chaque semaines disponible
+            for(const data of sortingDate) {
+                let stringDate = data.stringDate
+                let mondayDate = data.mondayDate
 
                 console.log(mondayDate.toLocaleDateString())
 
