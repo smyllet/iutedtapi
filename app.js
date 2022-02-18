@@ -21,28 +21,34 @@ const io = require('socket.io')(server, {
     }
 })
 
+function sendLogin(socket, credentials, days) {
+    socket.emit('login', {
+        username: credentials.username,
+        edt: {
+            name: credentials.defaultEdt,
+            days: days
+        }
+    })
+}
+
+function updateEdt(socket, days) {
+    socket.emit('update', days)
+}
+
 io.on('connection', (socket) => {
     console.log(`Connecté au client ${socket.id}`)
-    socket.on('login', async (/** {selectedEdt: string, credentials: {username: string, password: string}} */ data) => {
+    socket.on('login', async (/** {username: string, password: string} */ credentials) => {
         try {
-            let credentials = data.credentials
-            let selectedEdt = data.selectedEdt
-            let defaut = (selectedEdt === "Par défaut")
-
-            console.log(cache)
+            let selectedEdt = ""
 
             // Test du cache identifiant + edt
             let credentialsFromCache = cacheCredentials.find(c => c.username === credentials.username && c.password === credentials.password && c.defaultEdt)
             if(credentialsFromCache) {
-                if(defaut) selectedEdt = credentialsFromCache.defaultEdt
+                selectedEdt = credentialsFromCache.defaultEdt
                 let potentialCache = cache.find(d => d.edt === selectedEdt)
                 if(potentialCache && potentialCache.expireDate > new Date()) {
                     Logs.info(`Connexion cache de ${credentials.username}`)
-                    socket.emit('login', true)
-                    return socket.emit('updateEdt', {
-                        selectedEdt: credentialsFromCache.defaultEdt,
-                        days: potentialCache.data
-                    })
+                    return sendLogin(socket, credentials, potentialCache.data)
                 }
             }
             Logs.info(`Connexion à l'ENT de ${credentials.username}`)
@@ -62,41 +68,23 @@ io.on('connection', (socket) => {
 
             // Test de succès de la connexion
             if(!(await page.title()).includes('ENT')) {
-                return socket.emit('login', false)
-            } else {
-                socket.emit('login', true)
-                cacheCredentials.push(credentials)
+                return socket.emit('login', null)
             }
 
             // récupération Emploi du temps
             await page.goto(`https://ent.iut.univ-paris8.fr/edt/presentations.php`)
 
-            let indexCredential = cacheCredentials.indexOf(credentials)
-            if(indexCredential > -1) {
-                let defaultEdt = await ((await page.$('.ui-selectmenu-text')).innerText())
-                cacheCredentials.splice(indexCredential, 1)
-                credentials['defaultEdt'] = defaultEdt
-                cacheCredentials.push(credentials)
-            }
+            selectedEdt = await ((await page.$('.ui-selectmenu-text')).innerText())
+            credentials['defaultEdt'] = selectedEdt
+            cacheCredentials.push(credentials)
+            sendLogin(socket, credentials, [])
 
             // Envoi du cache si il existe
-            if(defaut) selectedEdt = credentials.defaultEdt
             let potentialCache = cache.find(d => d.edt === selectedEdt)
             if(potentialCache && potentialCache.expireDate > new Date()) {
                 Logs.info('Récupération EDT cache')
-                return socket.emit('updateEdt', {
-                    selectedEdt: selectedEdt,
-                    days: potentialCache.data
-                })
+                return updateEdt(socket, potentialCache.data)
             } else Logs.info('Récupération EDT scrapping')
-
-            if(!defaut) {
-                await page.click(".ui-selectmenu-button")
-                await page.screenshot({path: "lastCalendarView.png"})
-                await page.click(`#selectpromo-menu>li:has-text("${selectedEdt}")`)
-            }
-
-            let entSelectedEdt = await ((await page.$('.ui-selectmenu-text')).innerText())
 
             // Récupération de la liste des semaines
             await page.click("#selectsem-button")
@@ -196,10 +184,7 @@ io.on('connection', (socket) => {
                 }
 
                 days = days.concat(edtDays)
-                socket.emit('updateEdt', {
-                    selectedEdt: entSelectedEdt,
-                    days: days
-                })
+                updateEdt(socket, days)
             }
             cache.push({
                 edt: selectedEdt,
