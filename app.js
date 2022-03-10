@@ -48,7 +48,7 @@ io.on('connection', (socket) => {
                 let potentialCache = cache.find(d => d.edt === selectedEdt)
                 if(potentialCache && potentialCache.expireDate > new Date()) {
                     Logs.info(`Connexion cache de ${credentials.username}`)
-                    return sendLogin(socket, credentials, potentialCache.data)
+                    return sendLogin(socket, credentialsFromCache, potentialCache.data)
                 }
             }
             Logs.info(`Connexion à l'ENT de ${credentials.username}`)
