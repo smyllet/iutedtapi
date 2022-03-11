@@ -13,6 +13,23 @@ let cache = []
  */
 let cacheCredentials = []
 
+/**
+ * @type {string[]}
+ */
+const colors = ["#fceeac", "#c9fcac", "#c3fad5", "#bafaee", "#c7f6fc", "#e9edfe", "#e6eefe", "#fee7fc", "#fee9e6", "#feecc2", "#fcbfbf", "#bccdff", "#b8fec9", "#bfccfb", "#eac7b2", "#fcc0b0"]
+
+/**
+ * @type {
+ *     [
+ *         {
+ *             mat: string,
+ *             color: string
+ *         }
+ *     ]
+ * }
+ */
+const matColor = []
+
 const server = require('http').createServer()
 const io = require('socket.io')(server, {
     cors: {
@@ -175,6 +192,24 @@ io.on('connection', (socket) => {
                             day.fin += 60 * (style.find(s => s.includes("height")).split(':')[1].split("px")[0])
 
                             day.finText = (new Date(day.fin * 1000)).toLocaleString()
+
+                            day.color = "#e5e5e5"
+                            let potentialColor = matColor.find(mc => mc.mat === day.mat.toLowerCase())
+
+                            if(day.salle === "@") day.salle = "Distanciel"
+
+                            if(potentialColor) {
+                                day.color = potentialColor.color
+                            } else {
+                                let matColorSize = matColor.length
+                                if(matColorSize < colors.length) {
+                                    day.color = colors[matColorSize]
+                                    matColor.push({
+                                        mat: day.mat.toLowerCase(),
+                                        color: day.color
+                                    })
+                                }
+                            }
 
                             return day
                         } catch (e) {
